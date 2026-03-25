@@ -1,0 +1,8 @@
+{
+  "name": "ai-research-scout",
+  "version": "0.1.0",
+  "description": "AI Research Scout - 智能研究助手",
+  "repository": "https://github.com/yourusername/ai-research-scout",
+  "logo": "https://via.placeholder.com/100",
+  "keywords": ["ai", "research", "scout", "flask"]
+}
