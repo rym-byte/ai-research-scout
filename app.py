@@ -97,6 +97,12 @@ if __name__ == '__main__':
     # 创建模板目录
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static', exist_ok=True)
+    
+    # Railway 需要从环境变量获取端口
+    port = int(os.environ.get('PORT', 5000))
+    
     print("🚀 AI Research Scout Web UI")
-    print("📍 打开浏览器访问: http://127.0.0.1:5000")
-    app.run(debug=True, port=5000)
+    print(f"📍 Running on port: {port}")
+    
+    # Railway 需要 host='0.0.0.0'
+    app.run(host='0.0.0.0', port=port, debug=False)
