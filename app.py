@@ -1,1 +1,159 @@
-"""AI Research Scout - Web 应用"""\nimport os\nimport asyncio\nimport secrets\nfrom datetime import datetime\nfrom flask import Flask, render_template, request, jsonify\nfrom markupsafe import escape\n\nfrom src.collectors import HNCollector, WebCollector\nfrom src.analyzers import ResearchSynthesizer\nfrom src.outputs import MarkdownOutput\n\napp = Flask(__name__)\napp.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ai-research-scout-2026')\n\nAPI_TOKEN = os.environ.get('API_TOKEN', 'sk_live_' + secrets.token_hex(16))\n\nhistory = []\n\ndef run_research(topic, sources, limit):\n    all_items = []\n    collectors = []\n    if 'hn' in sources:\n        collectors.append(('Hacker News', HNCollector()))\n    if 'web' in sources:\n        collectors.append(('Web', WebCollector()))\n    results = {'sources': {}, 'items': [], 'report': None}\n    for name, collector in collectors:\n        try:\n            items = await collector.search(topic, limit)\n            all_items.extend(items)\n            results['sources'][name] = len(items)\n        except Exception as e:\n            results['sources'][name] = str(e)\n        finally:\n            await collector.close()\n    synthesizer = ResearchSynthesizer()\n    report = synthesizer.synthesize(all_items, topic)\n    results['items'] = all_items\n    results['report'] = {'topic': report.topic, 'summary': report.summary, 'key_findings': report.key_findings, 'recommendations': report.recommendations, 'created_at': report.created_at}\n    return results\n\n@app.route('/')\ndef index():\n    return render_template('index.html', history=history[-10:])\n\n@app.route('/api/research', methods=['POST'])\ndef api_research():\n    data = request.get_json()\n    topic = data.get('topic', '').strip()\n    sources = data.get('sources', ['hn', 'web'])\n    limit = int(data.get('limit', 10))\n    if not topic:\n        return jsonify({'error': '请输入研究主题'}), 400\n    loop = asyncio.new_event_loop()\n    asyncio.set_event_loop(loop)\n    results = loop.run_until_complete(run_research(topic, sources, limit))\n    loop.close()\n    history.append({'topic': topic, 'time': datetime.now().strftime('%Y-%m-%d %H:%M'), 'count': len(results['items'])})\n    return jsonify(results)\n\n@app.route('/api/trigger', methods=['POST'])\ndef api_trigger():\n    auth_header = request.headers.get('Authorization', '')\n    token = auth_header.replace('Bearer ', '') if auth_header.startswith('Bearer ') else ''\n    if token != API_TOKEN:\n        return jsonify({'error': 'Unauthorized'}), 401\n    topic = request.json.get('topic', 'AI前沿应用') if request.is_json else 'AI前沿应用'\n    loop = asyncio.new_event_loop()\n    asyncio.set_event_loop(loop)\n    results = loop.run_until_complete(run_research(topic, ['hn', 'web'], 15))\n    loop.close()\n    history.append({'topic': topic, 'time': datetime.now().strftime('%Y-%m-%d %H:%M'), 'count': len(results['items'])})\n    return jsonify({'success': True, 'report': results['report'], 'items_count': len(results['items']), 'triggered_at': datetime.now().isoformat()})\n\n@app.route('/api/history')\ndef api_history():\n    return jsonify(history[-20:])\n\nif __name__ == '__main__':\n    port = int(os.environ.get('PORT', 5000))\n    app.run(host='0.0.0.0', port=port, debug=False)
+      
+"""AI Research Scout - Web 应用"""
+import os
+import asyncio
+import secrets
+from datetime import datetime
+from flask import Flask, render_template, request, jsonify
+from markupsafe import escape
+
+from src.collectors import HNCollector, WebCollector
+from src.analyzers import ResearchSynthesizer
+from src.outputs import MarkdownOutput
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ai-research-scout-2026')
+
+# API Token 用于定时任务调用
+API_TOKEN = os.environ.get('API_TOKEN', 'sk_live_' + secrets.token_hex(16))
+
+# 存储历史记录
+history = []
+
+
+async def run_research(topic: str, sources: list, limit: int):
+    """执行研究"""
+    all_items = []
+    collectors = []
+
+    if 'hn' in sources:
+        collectors.append(('Hacker News', HNCollector()))
+    if 'web' in sources:
+        collectors.append(('Web', WebCollector()))
+
+    results = {'sources': {}, 'items': [], 'report': None}
+
+    for name, collector in collectors:
+        try:
+            items = await collector.search(topic, limit)
+            all_items.extend(items)
+            results['sources'][name] = len(items)
+        except Exception as e:
+            results['sources'][name] = f"错误: {str(e)}"
+        finally:
+            await collector.close()
+
+    # 分析
+    synthesizer = ResearchSynthesizer()
+    report = synthesizer.synthesize(all_items, topic)
+
+    results['items'] = all_items
+    results['report'] = {
+        'topic': report.topic,
+        'summary': report.summary,
+        'key_findings': report.key_findings,
+        'recommendations': report.recommendations,
+        'created_at': report.created_at
+    }
+
+    return results
+
+
+@app.route('/')
+def index():
+    """首页"""
+    return render_template('index.html', history=history[-10:])
+
+
+@app.route('/api/research', methods=['POST'])
+def api_research():
+    """API: 执行研究"""
+    data = request.get_json()
+    topic = data.get('topic', '').strip()
+    sources = data.get('sources', ['hn', 'web'])
+    limit = int(data.get('limit', 10))
+
+    if not topic:
+        return jsonify({'error': '请输入研究主题'}), 400
+
+    # 执行研究
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    results = loop.run_until_complete(run_research(topic, sources, limit))
+    loop.close()
+
+    # 保存历史
+    history.append({
+        'topic': topic,
+        'time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'count': len(results['items'])
+    })
+
+    return jsonify(results)
+
+
+@app.route('/api/trigger', methods=['POST'])
+def api_trigger():
+    """API: 定时任务触发器（需Token验证）"""
+    # Token 验证
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace('Bearer ', '') if auth_header.startswith('Bearer ') else ''
+    
+    if token != API_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # 执行研究
+    topic = request.json.get('topic', 'AI前沿应用') if request.is_json else 'AI前沿应用'
+    sources = ['hn', 'web']
+    limit = 15
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    results = loop.run_until_complete(run_research(topic, sources, limit))
+    loop.close()
+    
+    # 保存历史
+    history.append({
+        'topic': topic,
+        'time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'count': len(results['items'])
+    })
+    
+    return jsonify({
+        'success': True,
+        'report': results['report'],
+        'items_count': len(results['items']),
+        'triggered_at': datetime.now().isoformat()
+    })
+
+
+@app.route('/api/history')
+def api_history():
+    """API: 获取历史"""
+    return jsonify(history[-20:])
+
+
+@app.route('/api/token')
+def api_token():
+    """API: 获取 Token（仅本地开发）"""
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        return jsonify({'error': 'Not available in production'}), 403
+    return jsonify({'token': API_TOKEN})
+
+
+if __name__ == '__main__':
+    # 创建模板目录
+    os.makedirs('templates', exist_ok=True)
+    os.makedirs('static', exist_ok=True)
+    
+    # Railway 需要从环境变量获取端口
+    port = int(os.environ.get('PORT', 5000))
+    
+    print("🚀 AI Research Scout Web UI")
+    print(f"📍 Running on port: {port}")
+    print(f"🔑 API Token: {API_TOKEN}")
+    
+    # Railway 需要 host='0.0.0.0'
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+    
