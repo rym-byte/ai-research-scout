@@ -3,14 +3,25 @@
 import os
 import asyncio
 import secrets
+import io
+import base64
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file, make_response
 from markupsafe import escape
 
 from src.collectors import HNCollector, WebCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
+
+# 存储最新报告（用于 Web UI 展示）
+latest_report = {
+    'topic': '',
+    'report': None,
+    'groq_analysis': None,
+    'items': [],
+    'created_at': None
+}
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ai-research-scout-2026')
@@ -76,7 +87,7 @@ async def run_research_with_groq(topic: str, sources: list, limit: int):
 @app.route('/')
 def index():
     """首页"""
-    return render_template('index.html', history=history[-10:])
+    return render_template('index.html')
 
 
 @app.route('/api/research', methods=['POST'])
@@ -133,6 +144,16 @@ def api_trigger():
         'count': len(results['items'])
     })
     
+    # 保存最新报告（用于 Web UI）
+    global latest_report
+    latest_report = {
+        'topic': topic,
+        'report': results['report'],
+        'groq_analysis': results.get('groq_analysis', {}),
+        'items': results['items'],
+        'created_at': datetime.now().isoformat()
+    }
+    
     return jsonify({
         'success': True,
         'report': results['report'],
@@ -169,6 +190,98 @@ def api_token():
     if os.environ.get('RAILWAY_ENVIRONMENT'):
         return jsonify({'error': 'Not available in production'}), 403
     return jsonify({'token': API_TOKEN})
+
+
+@app.route('/report')
+def report_page():
+    """Web UI: 显示完整报告"""
+    if not latest_report['report']:
+        return render_template('report.html', 
+                              error="暂无报告，请先触发研究任务",
+                              report=None,
+                              groq_analysis=None)
+    
+    return render_template('report.html',
+                          topic=latest_report['topic'],
+                          report=latest_report['report'],
+                          groq_analysis=latest_report['groq_analysis'],
+                          created_at=latest_report['created_at'])
+
+
+@app.route('/api/export/markdown')
+def export_markdown():
+    """API: 导出 Markdown 格式"""
+    if not latest_report['report']:
+        return jsonify({'error': 'No report available'}), 404
+    
+    # 构建 Markdown 内容
+    md_content = f"""# AI Research Scout 报告
+
+## 主题
+{latest_report['topic']}
+
+## 生成时间
+{latest_report['created_at']}
+
+## 摘要
+{latest_report['report'].get('summary', 'N/A')}
+
+## 关键发现
+"""
+    for finding in latest_report['report'].get('key_findings', []):
+        md_content += f"- {finding}\n"
+    
+    md_content += "\n## 建议\n"
+    for rec in latest_report['report'].get('recommendations', []):
+        md_content += f"- {rec}\n"
+    
+    # 添加 LLM 分析
+    if latest_report['groq_analysis'] and latest_report['groq_analysis'].get('success'):
+        md_content += f"\n## LLM 深度分析\n\n{latest_report['groq_analysis'].get('analysis', '')}\n"
+    
+    # 添加项目列表
+    md_content += "\n## 项目列表\n\n"
+    for i, item in enumerate(latest_report['items'][:20], 1):
+        md_content += f"{i}. **{item.get('title', 'N/A')}**\n"
+        if item.get('url'):
+            md_content += f"   - URL: {item.get('url')}\n"
+    
+    response = make_response(md_content)
+    response.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.md'
+    return response
+
+
+@app.route('/api/export/txt')
+def export_txt():
+    """API: 导出 TXT 格式"""
+    if not latest_report['report']:
+        return jsonify({'error': 'No report available'}), 404
+    
+    # 构建纯文本内容
+    txt_content = f"""AI Research Scout 报告
+主题: {latest_report['topic']}
+生成时间: {latest_report['created_at']}
+
+摘要:
+{latest_report['report'].get('summary', 'N/A')}
+
+关键发现:
+"""
+    for finding in latest_report['report'].get('key_findings', []):
+        txt_content += f"- {finding}\n"
+    
+    txt_content += "\n建议:\n"
+    for rec in latest_report['report'].get('recommendations', []):
+        txt_content += f"- {rec}\n"
+    
+    if latest_report['groq_analysis'] and latest_report['groq_analysis'].get('success'):
+        txt_content += f"\n\nLLM 深度分析:\n{latest_report['groq_analysis'].get('analysis', '')}\n"
+    
+    response = make_response(txt_content)
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.txt'
+    return response
 
 
 if __name__ == '__main__':
