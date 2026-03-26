@@ -152,10 +152,10 @@ def api_history():
 def api_debug():
     """API: 调试环境变量"""
     return jsonify({
+        "deepseek_key_set": bool(os.environ.get("DEEPSEEK_API_KEY")),
         "groq_key_set": bool(os.environ.get("GROQ_API_KEY")),
-        "groq_key_length": len(os.environ.get("GROQ_API_KEY", "")),
         "api_token_set": bool(API_TOKEN),
-        "env_keys": [k for k in os.environ.keys() if "GROQ" in k or "API" in k]
+        "env_keys": [k for k in os.environ.keys() if "DEEPSEEK" in k or "GROQ" in k or "API" in k]
     })
 
 
