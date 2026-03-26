@@ -148,6 +148,17 @@ def api_history():
     return jsonify(history[-20:])
 
 
+@app.route('/api/debug')
+def api_debug():
+    """API: 调试环境变量"""
+    return jsonify({
+        "groq_key_set": bool(os.environ.get("GROQ_API_KEY")),
+        "groq_key_length": len(os.environ.get("GROQ_API_KEY", "")),
+        "api_token_set": bool(API_TOKEN),
+        "env_keys": [k for k in os.environ.keys() if "GROQ" in k or "API" in k]
+    })
+
+
 @app.route('/api/token')
 def api_token():
     """API: 获取 Token（仅本地开发）"""
