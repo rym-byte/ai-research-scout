@@ -1,4 +1,3 @@
-      
 """AI Research Scout - Web 应用"""
 import os
 import asyncio
@@ -6,13 +5,29 @@ import secrets
 import io
 import base64
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_file, make_response
+from flask import Flask, render_template, request, jsonify, send_file, make_response, redirect, url_for
 from markupsafe import escape
 
 from src.collectors import HNCollector, WebCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
+
+# 尝试导入 Word/PDF 导出库
+try:
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
 
 # 存储最新报告（用于 Web UI 展示）
 latest_report = {
@@ -88,6 +103,41 @@ async def run_research_with_groq(topic: str, sources: list, limit: int):
 def index():
     """首页"""
     return render_template('index.html')
+
+
+@app.route('/research', methods=['POST'])
+def research():
+    """处理用户研究请求"""
+    topic = request.form.get('topic', '').strip()
+    sources = request.form.getlist('sources')
+    
+    if not topic:
+        return render_template('index.html', error='请输入研究主题')
+    
+    if not sources:
+        sources = ['hn', 'web']
+    
+    # 执行研究
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    results = loop.run_until_complete(run_research_with_groq(topic, sources, 15))
+    loop.close()
+    
+    # 保存最新报告
+    global latest_report
+    latest_report = {
+        'topic': topic,
+        'report': results['report'],
+        'groq_analysis': results.get('groq_analysis', {}),
+        'items': results['items'],
+        'created_at': datetime.now().isoformat()
+    }
+    
+    return render_template('results.html',
+                          topic=topic,
+                          items=results['items'][:10],
+                          report=results['report'],
+                          groq_analysis=results.get('groq_analysis', {}))
 
 
 @app.route('/api/research', methods=['POST'])
@@ -258,7 +308,116 @@ def export_txt():
     if not latest_report['report']:
         return jsonify({'error': 'No report available'}), 404
     
-    # 构建纯文本内容
+    txt_content = generate_report_text()
+    
+    response = make_response(txt_content)
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.txt'
+    return response
+
+
+@app.route('/api/export/word')
+def export_word():
+    """API: 导出 Word 格式"""
+    if not latest_report['report']:
+        return jsonify({'error': 'No report available'}), 404
+    
+    if not DOCX_AVAILABLE:
+        return jsonify({'error': 'Word export not available. Install python-docx: pip install python-docx'}), 503
+    
+    doc = Document()
+    
+    # 标题
+    title = doc.add_heading('AI Research Scout 报告', 0)
+    
+    # 主题
+    doc.add_heading(f'主题: {latest_report["topic"]}', level=1)
+    doc.add_paragraph(f'生成时间: {latest_report["created_at"]}')
+    
+    # 摘要
+    doc.add_heading('摘要', level=2)
+    doc.add_paragraph(latest_report['report'].get('summary', 'N/A'))
+    
+    # 关键发现
+    doc.add_heading('关键发现', level=2)
+    for finding in latest_report['report'].get('key_findings', []):
+        doc.add_paragraph(finding, style='List Bullet')
+    
+    # 建议
+    doc.add_heading('建议', level=2)
+    for rec in latest_report['report'].get('recommendations', []):
+        doc.add_paragraph(rec, style='List Bullet')
+    
+    # LLM 分析
+    if latest_report['groq_analysis'] and latest_report['groq_analysis'].get('success'):
+        doc.add_heading('LLM 深度分析', level=2)
+        doc.add_paragraph(latest_report['groq_analysis'].get('analysis', ''))
+    
+    # 保存到内存
+    doc_io = io.BytesIO()
+    doc.save(doc_io)
+    doc_io.seek(0)
+    
+    return send_file(
+        doc_io,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=f'report_{datetime.now().strftime("%Y%m%d")}.docx'
+    )
+
+
+@app.route('/api/export/pdf')
+def export_pdf():
+    """API: 导出 PDF 格式"""
+    if not latest_report['report']:
+        return jsonify({'error': 'No report available'}), 404
+    
+    if not PDF_AVAILABLE:
+        return jsonify({'error': 'PDF export not available. Install reportlab: pip install reportlab'}), 503
+    
+    pdf_io = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_io, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # 标题
+    story.append(Paragraph('AI Research Scout 报告', styles['Title']))
+    story.append(Spacer(1, 12))
+    
+    # 主题
+    story.append(Paragraph(f'主题: {latest_report["topic"]}', styles['Heading1']))
+    story.append(Paragraph(f'生成时间: {latest_report["created_at"]}', styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    # 摘要
+    story.append(Paragraph('摘要', styles['Heading2']))
+    story.append(Paragraph(latest_report['report'].get('summary', 'N/A'), styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    # 关键发现
+    story.append(Paragraph('关键发现', styles['Heading2']))
+    for finding in latest_report['report'].get('key_findings', []):
+        story.append(Paragraph(f'• {finding}', styles['Normal']))
+    story.append(Spacer(1, 12))
+    
+    # 建议
+    story.append(Paragraph('建议', styles['Heading2']))
+    for rec in latest_report['report'].get('recommendations', []):
+        story.append(Paragraph(f'• {rec}', styles['Normal']))
+    
+    doc.build(story)
+    pdf_io.seek(0)
+    
+    return send_file(
+        pdf_io,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'report_{datetime.now().strftime("%Y%m%d")}.pdf'
+    )
+
+
+def generate_report_text():
+    """生成报告文本"""
     txt_content = f"""AI Research Scout 报告
 主题: {latest_report['topic']}
 生成时间: {latest_report['created_at']}
@@ -278,10 +437,7 @@ def export_txt():
     if latest_report['groq_analysis'] and latest_report['groq_analysis'].get('success'):
         txt_content += f"\n\nLLM 深度分析:\n{latest_report['groq_analysis'].get('analysis', '')}\n"
     
-    response = make_response(txt_content)
-    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-    response.headers['Content-Disposition'] = f'attachment; filename=report_{datetime.now().strftime("%Y%m%d")}.txt'
-    return response
+    return txt_content
 
 
 if __name__ == '__main__':
@@ -298,5 +454,3 @@ if __name__ == '__main__':
     
     # Railway 需要 host='0.0.0.0'
     app.run(host='0.0.0.0', port=port, debug=False)
-
-    
