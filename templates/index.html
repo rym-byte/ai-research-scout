@@ -1,69 +1,133 @@
-      
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Research Scout</title>
+    <title>AI Research Scout - 智能研究助手</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #e0e0e0;
-            line-height: 1.6;
             min-height: 100vh;
+            padding: 40px 20px;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 60px 20px;
-            text-align: center;
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 50px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; color: #fff; }
+        .header p { color: #888; font-size: 1.1em; }
+        .search-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
-            color: #fff;
-        }
-        .subtitle {
-            font-size: 1.2em;
-            color: #888;
-            margin-bottom: 40px;
-        }
-        .nav-links {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .nav-link {
-            padding: 15px 30px;
-            background: rgba(79, 195, 247, 0.2);
+        .input-group { margin-bottom: 30px; }
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
             color: #4fc3f7;
-            text-decoration: none;
+            font-weight: 600;
+        }
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid rgba(79, 195, 247, 0.3);
             border-radius: 8px;
-            border: 1px solid rgba(79, 195, 247, 0.3);
-            transition: all 0.3s ease;
+            background: rgba(0, 0, 0, 0.2);
+            color: #fff;
+            font-size: 16px;
         }
-        .nav-link:hover {
-            background: rgba(79, 195, 247, 0.3);
-            transform: translateY(-2px);
+        .sources {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
         }
+        .source-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .source-item.selected {
+            border-color: #4fc3f7;
+            background: rgba(79, 195, 247, 0.15);
+        }
+        .search-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .results { margin-top: 30px; }
+        .result-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .export-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .export-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .export-btn.word { background: #2b579a; color: white; }
+        .export-btn.pdf { background: #e74c3c; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 AI Research Scout</h1>
-        <p class="subtitle">AI 前沿应用侦察兵</p>
-        <div class="nav-links">
-            <a href="/report" class="nav-link">📊 查看完整报告</a>
+        <div class="header">
+            <h1>🔍 AI Research Scout</h1>
+            <p>输入关键词，选择信源，AI 自动生成研究报告</p>
+        </div>
+
+        <div class="search-box">
+            <form action="/research" method="POST">
+                <div class="input-group">
+                    <label>研究主题</label>
+                    <input type="text" name="topic" placeholder="例如：AI Agent 自动化工具..." required />
+                </div>
+
+                <div class="input-group">
+                    <label>选择信源</label>
+                    <div class="sources">
+                        <div class="source-item selected">
+                            <input type="checkbox" name="sources" value="hn" checked /> Hacker News
+                        </div>
+                        <div class="source-item">
+                            <input type="checkbox" name="sources" value="reddit" /> Reddit
+                        </div>
+                        <div class="source-item selected">
+                            <input type="checkbox" name="sources" value="web" checked /> Web 搜索
+                        </div>
+                        <div class="source-item">
+                            <input type="checkbox" name="sources" value="github" /> GitHub
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="search-btn">开始研究</button>
+            </form>
         </div>
     </div>
 </body>
 </html>
-
-    
