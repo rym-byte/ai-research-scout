@@ -4,7 +4,6 @@ import os
 import requests
 from typing import List, Dict, Optional
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -13,7 +12,7 @@ class GroqAnalyzer:
     
     def __init__(self, model: str = "llama-3.3-70b-versatile"):
         self.model = model
-        self.api_key = GROQ_API_KEY
+        self.api_key = os.environ.get("GROQ_API_KEY", "")
         
     def analyze_projects(self, projects: List[Dict], topic: str) -> Dict:
         """分析项目列表，生成深度洞察"""
