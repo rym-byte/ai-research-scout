@@ -151,11 +151,15 @@ def api_history():
 @app.route('/api/debug')
 def api_debug():
     """API: 调试环境变量"""
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
     return jsonify({
-        "deepseek_key_set": bool(os.environ.get("DEEPSEEK_API_KEY")),
+        "deepseek_key_set": bool(deepseek_key),
+        "deepseek_key_length": len(deepseek_key),
+        "deepseek_key_preview": deepseek_key[:10] + "..." if deepseek_key else "EMPTY",
         "groq_key_set": bool(os.environ.get("GROQ_API_KEY")),
         "api_token_set": bool(API_TOKEN),
-        "env_keys": [k for k in os.environ.keys() if "DEEPSEEK" in k or "GROQ" in k or "API" in k]
+        "all_env_keys": list(os.environ.keys()),
+        "relevant_keys": {k: v[:20] + "..." if len(v) > 20 else v for k, v in os.environ.items() if "DEEP" in k or "GROQ" in k or "API" in k or "KEY" in k}
     })
 
 
