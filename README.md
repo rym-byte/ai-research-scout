@@ -15,6 +15,8 @@
 railway login
 
 # 2. 初始化项目
+
+
 railway init
 
 # 3. 部署
