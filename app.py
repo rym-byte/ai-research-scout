@@ -22,9 +22,13 @@ except ImportError:
     DOCX_AVAILABLE = False
 
 try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib import colors
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
@@ -368,52 +372,122 @@ def export_word():
 
 @app.route('/api/export/pdf')
 def export_pdf():
-    """API: 导出 PDF 格式"""
+    """API: 导出 PDF 格式（支持中文）"""
     if not latest_report['report']:
         return jsonify({'error': 'No report available'}), 404
     
     if not PDF_AVAILABLE:
         return jsonify({'error': 'PDF export not available. Install reportlab: pip install reportlab'}), 503
     
-    pdf_io = io.BytesIO()
-    doc = SimpleDocTemplate(pdf_io, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
-    
-    # 标题
-    story.append(Paragraph('AI Research Scout 报告', styles['Title']))
-    story.append(Spacer(1, 12))
-    
-    # 主题
-    story.append(Paragraph(f'主题: {latest_report["topic"]}', styles['Heading1']))
-    story.append(Paragraph(f'生成时间: {latest_report["created_at"]}', styles['Normal']))
-    story.append(Spacer(1, 12))
-    
-    # 摘要
-    story.append(Paragraph('摘要', styles['Heading2']))
-    story.append(Paragraph(latest_report['report'].get('summary', 'N/A'), styles['Normal']))
-    story.append(Spacer(1, 12))
-    
-    # 关键发现
-    story.append(Paragraph('关键发现', styles['Heading2']))
-    for finding in latest_report['report'].get('key_findings', []):
-        story.append(Paragraph(f'• {finding}', styles['Normal']))
-    story.append(Spacer(1, 12))
-    
-    # 建议
-    story.append(Paragraph('建议', styles['Heading2']))
-    for rec in latest_report['report'].get('recommendations', []):
-        story.append(Paragraph(f'• {rec}', styles['Normal']))
-    
-    doc.build(story)
-    pdf_io.seek(0)
-    
-    return send_file(
-        pdf_io,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f'report_{datetime.now().strftime("%Y%m%d")}.pdf'
-    )
+    try:
+        # 注册中文字体
+        try:
+            pdfmetrics.registerFont(TTFont('SimSun', '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc'))
+            chinese_font = 'SimSun'
+        except:
+            try:
+                pdfmetrics.registerFont(TTFont('SimSun', '/System/Library/Fonts/PingFang.ttc'))
+                chinese_font = 'SimSun'
+            except:
+                chinese_font = 'Helvetica'  #  fallback
+        
+        pdf_io = io.BytesIO()
+        doc = SimpleDocTemplate(
+            pdf_io, 
+            pagesize=A4,
+            rightMargin=2*cm,
+            leftMargin=2*cm,
+            topMargin=2*cm,
+            bottomMargin=2*cm
+        )
+        
+        # 自定义样式
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontName=chinese_font,
+            fontSize=24,
+            textColor=colors.HexColor('#1a1a2e'),
+            spaceAfter=30,
+            alignment=1  # 居中
+        )
+        
+        heading1_style = ParagraphStyle(
+            'CustomHeading1',
+            parent=styles['Heading1'],
+            fontName=chinese_font,
+            fontSize=16,
+            textColor=colors.HexColor('#4fc3f7'),
+            spaceAfter=12
+        )
+        
+        heading2_style = ParagraphStyle(
+            'CustomHeading2',
+            parent=styles['Heading2'],
+            fontName=chinese_font,
+            fontSize=14,
+            textColor=colors.HexColor('#29b6f6'),
+            spaceAfter=10
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontName=chinese_font,
+            fontSize=11,
+            leading=16
+        )
+        
+        story = []
+        
+        # 标题
+        story.append(Paragraph('AI Research Scout 研究报告', title_style))
+        story.append(Spacer(1, 20))
+        
+        # 主题信息
+        story.append(Paragraph(f'研究主题：{latest_report["topic"]}', heading1_style))
+        story.append(Paragraph(f'生成时间：{latest_report["created_at"]}', normal_style))
+        story.append(Spacer(1, 20))
+        
+        # 摘要
+        story.append(Paragraph('📋 摘要', heading2_style))
+        summary = latest_report['report'].get('summary', 'N/A').replace('\n', '<br/>')
+        story.append(Paragraph(summary, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # 关键发现
+        story.append(Paragraph('🔍 关键发现', heading2_style))
+        for finding in latest_report['report'].get('key_findings', []):
+            finding_text = finding.replace('\n', '<br/>')
+            story.append(Paragraph(f'• {finding_text}', normal_style))
+        story.append(Spacer(1, 15))
+        
+        # 建议
+        story.append(Paragraph('💡 建议', heading2_style))
+        for rec in latest_report['report'].get('recommendations', []):
+            rec_text = rec.replace('\n', '<br/>')
+            story.append(Paragraph(f'• {rec_text}', normal_style))
+        story.append(Spacer(1, 20))
+        
+        # LLM 分析
+        if latest_report['groq_analysis'] and latest_report['groq_analysis'].get('success'):
+            story.append(Paragraph('🤖 AI 深度分析', heading2_style))
+            analysis = latest_report['groq_analysis'].get('analysis', '').replace('\n', '<br/>')
+            story.append(Paragraph(analysis, normal_style))
+        
+        doc.build(story)
+        pdf_io.seek(0)
+        
+        return send_file(
+            pdf_io,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'report_{datetime.now().strftime("%Y%m%d")}.pdf'
+        )
+    except Exception as e:
+        return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
 
 
 def generate_report_text():
