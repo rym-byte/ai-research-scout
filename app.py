@@ -9,6 +9,7 @@ from markupsafe import escape
 
 from src.collectors import HNCollector, WebCollector
 from src.analyzers import ResearchSynthesizer
+from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
 
 app = Flask(__name__)
@@ -59,6 +60,19 @@ async def run_research(topic: str, sources: list, limit: int):
     return results
 
 
+async def run_research_with_groq(topic: str, sources: list, limit: int):
+    """执行研究 + Groq 深度分析"""
+    # 先执行基础研究
+    results = await run_research(topic, sources, limit)
+    
+    # 添加 Groq 深度分析
+    if results['items']:
+        groq_result = analyze_with_groq(results['items'], topic)
+        results['groq_analysis'] = groq_result
+    
+    return results
+
+
 @app.route('/')
 def index():
     """首页"""
@@ -102,14 +116,14 @@ def api_trigger():
     if token != API_TOKEN:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    # 执行研究
+    # 执行研究（带 Groq 分析）
     topic = request.json.get('topic', 'AI前沿应用') if request.is_json else 'AI前沿应用'
     sources = ['hn', 'web']
     limit = 15
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    results = loop.run_until_complete(run_research(topic, sources, limit))
+    results = loop.run_until_complete(run_research_with_groq(topic, sources, limit))
     loop.close()
     
     # 保存历史
@@ -122,6 +136,7 @@ def api_trigger():
     return jsonify({
         'success': True,
         'report': results['report'],
+        'groq_analysis': results.get('groq_analysis', {}),
         'items_count': len(results['items']),
         'triggered_at': datetime.now().isoformat()
     })
