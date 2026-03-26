@@ -1,4 +1,3 @@
-      
 """LLM 深度分析器"""
 import os
 import requests
@@ -22,8 +21,15 @@ class LLMAnalyzer:
         if not self.api_key:
             return {"error": "DEEPSEEK_API_KEY not configured", "success": False}
 
-        summary = "\n".join([f"{i+1}. {p.get('title', '')}" for i, p in enumerate(projects[:10])])
+        # 限制项目数量，避免 prompt 过长
+        limited_projects = projects[:8]
+        summary = "\n".join([f"{i+1}. {p.get('title', '')[:100]}" for i, p in enumerate(limited_projects)])
+        
         prompt = f"分析以下AI项目:\n{summary}\n\n给出核心趋势、TOP3推荐、技术洞察、商业价值、风险提示"
+        
+        # 确保 prompt 不超过 180000 字符（留有余量）
+        if len(prompt) > 180000:
+            prompt = prompt[:180000] + "...\n\n[内容截断]\n\n给出核心趋势、TOP3推荐、技术洞察、商业价值、风险提示"
 
         try:
             response = requests.post(
@@ -58,5 +64,3 @@ GroqAnalyzer = LLMAnalyzer
 
 def analyze_with_groq(projects: List[Dict], topic: str) -> Dict:
     return LLMAnalyzer().analyze_projects(projects, topic)
-
-    
