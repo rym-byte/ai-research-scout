@@ -8,7 +8,13 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, make_response, redirect, url_for
 from markupsafe import escape
 
-from src.collectors import HNCollector, WebCollector
+from src.collectors.hn_collector import HNCollector
+from src.collectors.web_collector import WebCollector
+from src.collectors.reddit_collector import RedditCollector
+from src.collectors.github_collector import GitHubCollector
+from src.collectors.youtube_collector import YouTubeCollector
+from src.collectors.twitter_collector import TwitterCollector
+from src.collectors.zhihu_collector import ZhihuCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
@@ -61,6 +67,16 @@ async def run_research(topic: str, sources: list, limit: int):
         collectors.append(('Hacker News', HNCollector()))
     if 'web' in sources:
         collectors.append(('Web', WebCollector()))
+    if 'reddit' in sources:
+        collectors.append(('Reddit', RedditCollector({'client_id': os.environ.get('REDDIT_CLIENT_ID'), 'client_secret': os.environ.get('REDDIT_CLIENT_SECRET')})))
+    if 'github' in sources:
+        collectors.append(('GitHub', GitHubCollector({'token': os.environ.get('GITHUB_TOKEN')})))
+    if 'youtube' in sources:
+        collectors.append(('YouTube', YouTubeCollector({'api_key': os.environ.get('YOUTUBE_API_KEY')})))
+    if 'twitter' in sources:
+        collectors.append(('Twitter', TwitterCollector({'api_key': os.environ.get('TWITTER_API_KEY'), 'api_secret': os.environ.get('TWITTER_API_SECRET')})))
+    if 'zhihu' in sources:
+        collectors.append(('知乎', ZhihuCollector()))
 
     results = {'sources': {}, 'items': [], 'report': None}
 
