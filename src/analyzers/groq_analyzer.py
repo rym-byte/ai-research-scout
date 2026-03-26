@@ -1,23 +1,57 @@
       
-"""Groq LLM 深度分析器"""
+"""LLM 深度分析器（支持 DeepSeek/Groq/OpenAI）"""
 import os
 import requests
 from typing import List, Dict, Optional
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+# 支持多个 LLM 提供商（优先级：DeepSeek > Groq > OpenAI）
+PROVIDERS = {
+    "deepseek": {
+        "url": "https://api.deepseek.com/v1/chat/completions", 
+        "key_env": "DEEPSEEK_API_KEY",
+        "model": "deepseek-chat"
+    },
+    "groq": {
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "key_env": "GROQ_API_KEY",
+        "model": "llama-3.1-8b-instant"
+    },
+    "openai": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "key_env": "OPENAI_API_KEY", 
+        "model": "gpt-3.5-turbo"
+    }
+}
 
 
-class GroqAnalyzer:
-    """使用 Groq API 进行深度分析"""
+class LLMAnalyzer:
+    """使用 LLM API 进行深度分析（支持多个提供商）"""
     
-    def __init__(self, model: str = "llama-3.3-70b-versatile"):
-        self.model = model
-        self.api_key = os.environ.get("GROQ_API_KEY", "")
+    def __init__(self):
+        self.model = None
+        self.api_key = None
+        self.provider_url = None
+        self.provider_name = None
+        self._init_provider()
+    
+    def _init_provider(self):
+        """初始化提供商，按优先级尝试"""
+        for provider_name, config in PROVIDERS.items():
+            key = os.environ.get(config["key_env"], "")
+            if key:
+                self.api_key = key
+                self.provider_url = config["url"]
+                self.model = config["model"]
+                self.provider_name = provider_name
+                return
+        
+        # 没有任何 Key
+        self.provider_name = None
         
     def analyze_projects(self, projects: List[Dict], topic: str) -> Dict:
         """分析项目列表，生成深度洞察"""
-        if not self.api_key:
-            return {"error": "GROQ_API_KEY not configured"}
+        if not self.api_key or not self.provider_url:
+            return {"error": "No LLM API key configured", "success": False}
         
         # 构建项目摘要
         projects_summary = self._format_projects(projects)
@@ -41,7 +75,7 @@ class GroqAnalyzer:
 
         try:
             response = requests.post(
-                GROQ_API_URL,
+                self.provider_url,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json"
@@ -64,13 +98,14 @@ class GroqAnalyzer:
                 return {
                     "success": True,
                     "analysis": analysis,
-                    "model": self.model
+                    "model": self.model,
+                    "provider": self.provider_name
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Groq API error: {response.status_code}",
-                    "details": response.text
+                    "error": f"API error: {response.status_code}",
+                    "details": response.text[:200]
                 }
                 
         except Exception as e:
@@ -79,7 +114,7 @@ class GroqAnalyzer:
     def _format_projects(self, projects: List[Dict]) -> str:
         """格式化项目列表"""
         lines = []
-        for i, p in enumerate(projects[:10], 1):  # 最多10个
+        for i, p in enumerate(projects[:10], 1):
             title = p.get("title", "Unknown")
             url = p.get("url", "")
             source = p.get("source", "")
@@ -91,9 +126,13 @@ class GroqAnalyzer:
         return "\n".join(lines) if lines else "暂无项目数据"
 
 
+# 兼容旧代码的别名
+GroqAnalyzer = LLMAnalyzer
+
+
 def analyze_with_groq(projects: List[Dict], topic: str) -> Dict:
-    """便捷函数：使用 Groq 分析项目"""
-    analyzer = GroqAnalyzer()
+    """便捷函数：使用 LLM 分析项目"""
+    analyzer = LLMAnalyzer()
     return analyzer.analyze_projects(projects, topic)
 
     
