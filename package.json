@@ -1,0 +1,11 @@
+{
+  "name": "ai-research-scout",
+  "version": "1.0.0",
+  "description": "AI Research Scout with browser automation",
+  "dependencies": {
+    "agent-browser": "^0.22.3"
+  },
+  "scripts": {
+    "postinstall": "agent-browser install || true"
+  }
+}
