@@ -15,6 +15,12 @@ from src.collectors.github_collector import GitHubCollector
 from src.collectors.youtube_collector import YouTubeCollector
 from src.collectors.twitter_collector import TwitterCollector
 from src.collectors.zhihu_collector import ZhihuCollector
+from src.collectors.baidu_collector import BaiduCollector
+from src.collectors.bilibili_collector import BilibiliCollector
+from src.collectors.douyin_collector import DouyinCollector
+from src.collectors.xiaohongshu_collector import XiaohongshuCollector
+from src.collectors.sogou_collector import SogouCollector
+from src.collectors.wechat_collector import WechatCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
@@ -77,6 +83,18 @@ async def run_research(topic: str, sources: list, limit: int):
         collectors.append(('Twitter', TwitterCollector({'api_key': os.environ.get('TWITTER_API_KEY'), 'api_secret': os.environ.get('TWITTER_API_SECRET')})))
     if 'zhihu' in sources:
         collectors.append(('知乎', ZhihuCollector()))
+    if 'baidu' in sources:
+        collectors.append(('百度', BaiduCollector()))
+    if 'bilibili' in sources:
+        collectors.append(('B站', BilibiliCollector()))
+    if 'douyin' in sources:
+        collectors.append(('抖音', DouyinCollector()))
+    if 'xiaohongshu' in sources:
+        collectors.append(('小红书', XiaohongshuCollector()))
+    if 'sogou' in sources:
+        collectors.append(('搜狗', SogouCollector()))
+    if 'wechat' in sources:
+        collectors.append(('微信', WechatCollector()))
 
     results = {'sources': {}, 'items': [], 'report': None}
 
