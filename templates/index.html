@@ -726,29 +726,39 @@
 
                 // 检查 report 是否存在
                 if (!data.report) {
-                    alert('返回数据格式错误：缺少 report 字段');
+                    console.error('API response missing report:', data);
+                    alert('返回数据格式错误：缺少 report 字段，请查看控制台');
                     return;
                 }
 
                 // 显示结果
-                document.getElementById('summary-text').innerHTML = (data.report.summary || '暂无摘要').replace(/\n/g, '<br>');
+                const summaryText = document.getElementById('summary-text');
+                if (summaryText) {
+                    summaryText.innerHTML = (data.report.summary || '暂无摘要').replace(/\n/g, '<br>');
+                }
                 
                 // 显示元信息
-                const metaInfo = document.getElementById('meta-info');
-                if (metaInfo) {
-                    const totalSources = data.report.total_sources || data.items?.length || 0;
-                    document.getElementById('total-sources').textContent = `📊 数据源: ${totalSources}条`;
-                    
+                const totalSources = data.report.total_sources ?? (data.items?.length || 0);
+                const sentiment = data.report.sentiment || 'neutral';
+                const confidence = data.report.confidence || 0;
+                
+                const totalSourcesEl = document.getElementById('total-sources');
+                if (totalSourcesEl) totalSourcesEl.textContent = `📊 数据源: ${totalSources}条`;
+                
+                const sentimentEl = document.getElementById('sentiment');
+                if (sentimentEl) {
                     const sentimentMap = {positive: '📈 积极倾向', negative: '📉 负面倾向', neutral: '➖ 中性'};
-                    document.getElementById('sentiment').textContent = sentimentMap[data.report.sentiment] || '➖ 中性';
-                    
-                    const confidence = data.report.confidence || 0;
-                    document.getElementById('confidence').textContent = `🎯 置信度: ${(confidence * 100).toFixed(0)}%`;
+                    sentimentEl.textContent = sentimentMap[sentiment] || '➖ 中性';
                 }
+                
+                const confidenceEl = document.getElementById('confidence');
+                if (confidenceEl) confidenceEl.textContent = `🎯 置信度: ${(confidence * 100).toFixed(0)}%`;
 
                 const findingsList = document.getElementById('findings-list');
-                const keyFindings = data.report.key_findings || [];
-                findingsList.innerHTML = keyFindings.map(f => `<li>${f}</li>`).join('');
+                if (findingsList) {
+                    const keyFindings = data.report.key_findings || [];
+                    findingsList.innerHTML = keyFindings.map(f => `<li>${f}</li>`).join('');
+                }
 
                 const itemsList = document.getElementById('items-list');
                 itemsList.innerHTML = data.items.map(item => `

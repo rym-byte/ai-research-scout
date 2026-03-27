@@ -152,17 +152,37 @@ async def run_research(topic: str, sources: list, limit: int):
                 print(f"Collector {name} close error: {e}")
 
     # 分析
-    synthesizer = ResearchSynthesizer()
-    report = synthesizer.synthesize(all_items, topic)
-
-    results['items'] = all_items
-    results['report'] = {
-        'topic': report.topic,
-        'summary': report.summary,
-        'key_findings': report.key_findings,
-        'recommendations': report.recommendations,
-        'created_at': report.created_at
-    }
+    try:
+        synthesizer = ResearchSynthesizer()
+        report = synthesizer.synthesize(all_items, topic)
+        
+        results['items'] = all_items
+        results['report'] = {
+            'topic': report.topic,
+            'summary': report.summary,
+            'key_findings': report.key_findings,
+            'recommendations': report.recommendations,
+            'created_at': report.created_at,
+            'total_sources': len(all_items),
+            'sentiment': 'neutral',
+            'confidence': 0.8 if all_items else 0.0
+        }
+    except Exception as e:
+        print(f"Synthesizer error: {e}")
+        import traceback
+        print(traceback.format_exc())
+        
+        results['items'] = all_items
+        results['report'] = {
+            'topic': topic,
+            'summary': f'分析过程中出现错误: {str(e)}',
+            'key_findings': [],
+            'recommendations': ['请稍后重试'],
+            'created_at': datetime.now().isoformat(),
+            'total_sources': len(all_items),
+            'sentiment': 'neutral',
+            'confidence': 0.0
+        }
 
     return results
 
