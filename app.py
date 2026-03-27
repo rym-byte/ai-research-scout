@@ -17,13 +17,14 @@ from src.collectors.twitter_collector import TwitterCollector
 from src.collectors.zhihu_collector import ZhihuCollector
 from src.collectors.baidu_collector import BaiduCollector
 from src.collectors.bilibili_collector import BilibiliCollector
-from src.collectors.douyin_collector import DouyinCollector
-from src.collectors.xiaohongshu_collector import XiaohongshuCollector
 from src.collectors.sogou_collector import SogouCollector
 from src.collectors.wechat_collector import WechatCollector
-from src.collectors.x_collector import XCollector
-from src.collectors.facebook_collector import FacebookCollector
-from src.collectors.instagram_collector import InstagramCollector
+# 以下采集器需要 agent-browser，在 Railway 上暂不可用
+# from src.collectors.douyin_collector import DouyinCollector
+# from src.collectors.xiaohongshu_collector import XiaohongshuCollector
+# from src.collectors.x_collector import XCollector
+# from src.collectors.facebook_collector import FacebookCollector
+# from src.collectors.instagram_collector import InstagramCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
@@ -98,12 +99,17 @@ async def run_research(topic: str, sources: list, limit: int):
         collectors.append(('搜狗', SogouCollector()))
     if 'wechat' in sources:
         collectors.append(('微信', WechatCollector()))
-    if 'x' in sources:
-        collectors.append(('X', XCollector()))
-    if 'facebook' in sources:
-        collectors.append(('Facebook', FacebookCollector()))
-    if 'instagram' in sources:
-        collectors.append(('Instagram', InstagramCollector()))
+    # 以下平台需要 agent-browser，在 Railway 上暂不可用
+    # if 'x' in sources:
+    #     collectors.append(('X', XCollector()))
+    # if 'facebook' in sources:
+    #     collectors.append(('Facebook', FacebookCollector()))
+    # if 'instagram' in sources:
+    #     collectors.append(('Instagram', InstagramCollector()))
+    # if 'douyin' in sources:
+    #     collectors.append(('抖音', DouyinCollector()))
+    # if 'xiaohongshu' in sources:
+    #     collectors.append(('小红书', XiaohongshuCollector()))
 
     results = {'sources': {}, 'items': [], 'report': None}
 
@@ -113,9 +119,16 @@ async def run_research(topic: str, sources: list, limit: int):
             all_items.extend(items)
             results['sources'][name] = len(items)
         except Exception as e:
-            results['sources'][name] = f"错误: {str(e)}"
+            import traceback
+            error_msg = f"错误: {str(e)}"
+            print(f"Collector {name} error: {error_msg}")
+            print(traceback.format_exc())
+            results['sources'][name] = error_msg
         finally:
-            await collector.close()
+            try:
+                await collector.close()
+            except Exception as e:
+                print(f"Collector {name} close error: {e}")
 
     # 分析
     synthesizer = ResearchSynthesizer()

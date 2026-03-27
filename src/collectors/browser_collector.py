@@ -2,9 +2,14 @@
 import asyncio
 import json
 import subprocess
+import shutil
 from typing import List, Optional
 from datetime import datetime
 from . import BaseCollector, SourceItem
+
+
+# 检查 agent-browser 是否可用
+AGENT_BROWSER_AVAILABLE = shutil.which('agent-browser') is not None
 
 
 class BrowserCollector(BaseCollector):
@@ -14,8 +19,17 @@ class BrowserCollector(BaseCollector):
         super().__init__(config)
         self.session_name = self.platform_name
         
+    def _check_agent_browser(self) -> bool:
+        """检查 agent-browser 是否可用"""
+        if not AGENT_BROWSER_AVAILABLE:
+            print(f"Warning: agent-browser not available for {self.platform_name}")
+            return False
+        return True
+        
     async def _browser_open(self, url: str) -> bool:
         """使用 agent-browser 打开页面"""
+        if not self._check_agent_browser():
+            return False
         try:
             result = subprocess.run(
                 ['agent-browser', '--session', self.session_name, 'open', url],

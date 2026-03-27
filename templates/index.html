@@ -568,6 +568,7 @@
                         <label>
                             <input type="checkbox" id="source-youtube"> YouTube
                         </label>
+                        <!-- 以下平台需要 agent-browser，暂不可用
                         <label>
                             <input type="checkbox" id="source-x"> X (Twitter)
                         </label>
@@ -577,6 +578,7 @@
                         <label>
                             <input type="checkbox" id="source-instagram"> Instagram
                         </label>
+                        -->
                     </div>
                 </div>
                 <div class="option-group">
@@ -595,14 +597,16 @@
                             <input type="checkbox" id="source-bilibili"> B站
                         </label>
                         <label>
+                            <input type="checkbox" id="source-zhihu"> 知乎
+                        </label>
+                        <!-- 以下平台需要 agent-browser，暂不可用
+                        <label>
                             <input type="checkbox" id="source-xiaohongshu"> 小红书
                         </label>
                         <label>
                             <input type="checkbox" id="source-douyin"> 抖音
                         </label>
-                        <label>
-                            <input type="checkbox" id="source-zhihu"> 知乎
-                        </label>
+                        -->
                     </div>
                 </div>
                 <div class="option-group">
@@ -678,17 +682,19 @@
             if (document.getElementById('source-reddit')?.checked) sources.push('reddit');
             if (document.getElementById('source-github')?.checked) sources.push('github');
             if (document.getElementById('source-youtube')?.checked) sources.push('youtube');
-            if (document.getElementById('source-x')?.checked) sources.push('x');
-            if (document.getElementById('source-facebook')?.checked) sources.push('facebook');
-            if (document.getElementById('source-instagram')?.checked) sources.push('instagram');
+            // 以下平台需要 agent-browser，暂不可用
+            // if (document.getElementById('source-x')?.checked) sources.push('x');
+            // if (document.getElementById('source-facebook')?.checked) sources.push('facebook');
+            // if (document.getElementById('source-instagram')?.checked) sources.push('instagram');
             // 国内数据源
             if (document.getElementById('source-baidu')?.checked) sources.push('baidu');
             if (document.getElementById('source-wechat')?.checked) sources.push('wechat');
             if (document.getElementById('source-sogou')?.checked) sources.push('sogou');
             if (document.getElementById('source-bilibili')?.checked) sources.push('bilibili');
-            if (document.getElementById('source-xiaohongshu')?.checked) sources.push('xiaohongshu');
-            if (document.getElementById('source-douyin')?.checked) sources.push('douyin');
             if (document.getElementById('source-zhihu')?.checked) sources.push('zhihu');
+            // 以下平台需要 agent-browser，暂不可用
+            // if (document.getElementById('source-xiaohongshu')?.checked) sources.push('xiaohongshu');
+            // if (document.getElementById('source-douyin')?.checked) sources.push('douyin');
 
             const limit = parseInt(document.getElementById('limit').value);
 
