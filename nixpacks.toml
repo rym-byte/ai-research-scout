@@ -1,0 +1,8 @@
+[phases.build]
+cmds = [
+    "npm install -g agent-browser",
+    "agent-browser install || true"
+]
+
+[phases.setup]
+nixPkgs = ["nodejs", "npm"]
