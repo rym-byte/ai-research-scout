@@ -568,6 +568,15 @@
                         <label>
                             <input type="checkbox" id="source-youtube"> YouTube
                         </label>
+                        <label>
+                            <input type="checkbox" id="source-x"> X (Twitter)
+                        </label>
+                        <label>
+                            <input type="checkbox" id="source-facebook"> Facebook
+                        </label>
+                        <label>
+                            <input type="checkbox" id="source-instagram"> Instagram
+                        </label>
                     </div>
                 </div>
                 <div class="option-group">
@@ -669,6 +678,9 @@
             if (document.getElementById('source-reddit')?.checked) sources.push('reddit');
             if (document.getElementById('source-github')?.checked) sources.push('github');
             if (document.getElementById('source-youtube')?.checked) sources.push('youtube');
+            if (document.getElementById('source-x')?.checked) sources.push('x');
+            if (document.getElementById('source-facebook')?.checked) sources.push('facebook');
+            if (document.getElementById('source-instagram')?.checked) sources.push('instagram');
             // 国内数据源
             if (document.getElementById('source-baidu')?.checked) sources.push('baidu');
             if (document.getElementById('source-wechat')?.checked) sources.push('wechat');

@@ -21,6 +21,9 @@ from src.collectors.douyin_collector import DouyinCollector
 from src.collectors.xiaohongshu_collector import XiaohongshuCollector
 from src.collectors.sogou_collector import SogouCollector
 from src.collectors.wechat_collector import WechatCollector
+from src.collectors.x_collector import XCollector
+from src.collectors.facebook_collector import FacebookCollector
+from src.collectors.instagram_collector import InstagramCollector
 from src.analyzers import ResearchSynthesizer
 from src.analyzers.groq_analyzer import analyze_with_groq
 from src.outputs import MarkdownOutput
@@ -95,6 +98,12 @@ async def run_research(topic: str, sources: list, limit: int):
         collectors.append(('搜狗', SogouCollector()))
     if 'wechat' in sources:
         collectors.append(('微信', WechatCollector()))
+    if 'x' in sources:
+        collectors.append(('X', XCollector()))
+    if 'facebook' in sources:
+        collectors.append(('Facebook', FacebookCollector()))
+    if 'instagram' in sources:
+        collectors.append(('Instagram', InstagramCollector()))
 
     results = {'sources': {}, 'items': [], 'report': None}
 
