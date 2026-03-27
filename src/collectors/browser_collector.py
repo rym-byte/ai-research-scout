@@ -24,6 +24,11 @@ class BrowserCollector(BaseCollector):
         if not AGENT_BROWSER_AVAILABLE:
             print(f"Warning: agent-browser not available for {self.platform_name}")
             return False
+        # 检查 Chrome 是否安装
+        import shutil
+        if not shutil.which('google-chrome') and not shutil.which('chromium') and not shutil.which('chrome'):
+            print(f"Warning: Chrome/Chromium not found for {self.platform_name}")
+            return False
         return True
         
     async def _browser_open(self, url: str) -> bool:

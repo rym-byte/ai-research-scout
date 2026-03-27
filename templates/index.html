@@ -704,28 +704,51 @@
                     body: JSON.stringify({topic, sources, limit})
                 });
 
-                const data = await response.json();
+                // 检查响应状态
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                }
+
+                // 尝试解析 JSON
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    const text = await response.text();
+                    throw new Error('返回的不是有效的 JSON: ' + text.substring(0, 100));
+                }
 
                 if (data.error) {
                     alert(data.error);
                     return;
                 }
 
+                // 检查 report 是否存在
+                if (!data.report) {
+                    alert('返回数据格式错误：缺少 report 字段');
+                    return;
+                }
+
                 // 显示结果
-                document.getElementById('summary-text').innerHTML = data.report.summary.replace(/\n/g, '<br>');
+                document.getElementById('summary-text').innerHTML = (data.report.summary || '暂无摘要').replace(/\n/g, '<br>');
                 
                 // 显示元信息
-                if (data.report.total_sources !== undefined) {
-                    document.getElementById('total-sources').textContent = `📊 数据源: ${data.report.total_sources}条`;
+                const metaInfo = document.getElementById('meta-info');
+                if (metaInfo) {
+                    const totalSources = data.report.total_sources || data.items?.length || 0;
+                    document.getElementById('total-sources').textContent = `📊 数据源: ${totalSources}条`;
                     
                     const sentimentMap = {positive: '📈 积极倾向', negative: '📉 负面倾向', neutral: '➖ 中性'};
                     document.getElementById('sentiment').textContent = sentimentMap[data.report.sentiment] || '➖ 中性';
                     
-                    document.getElementById('confidence').textContent = `🎯 置信度: ${(data.report.confidence * 100).toFixed(0)}%`;
+                    const confidence = data.report.confidence || 0;
+                    document.getElementById('confidence').textContent = `🎯 置信度: ${(confidence * 100).toFixed(0)}%`;
                 }
 
                 const findingsList = document.getElementById('findings-list');
-                findingsList.innerHTML = data.report.key_findings.map(f => `<li>${f}</li>`).join('');
+                const keyFindings = data.report.key_findings || [];
+                findingsList.innerHTML = keyFindings.map(f => `<li>${f}</li>`).join('');
 
                 const itemsList = document.getElementById('items-list');
                 itemsList.innerHTML = data.items.map(item => `

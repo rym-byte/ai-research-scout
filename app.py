@@ -60,6 +60,29 @@ latest_report = {
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ai-research-scout-2026')
 
+# 全局错误处理 - 确保 API 错误返回 JSON
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """处理所有未捕获的异常，返回 JSON"""
+    import traceback
+    print(f"Unhandled exception: {e}")
+    print(traceback.format_exc())
+    return jsonify({'error': str(e), 'type': type(e).__name__}), 500
+
+@app.errorhandler(404)
+def handle_404(e):
+    """处理 404 错误"""
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    return e
+
+@app.errorhandler(405)
+def handle_405(e):
+    """处理 405 错误"""
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Method not allowed'}), 405
+    return e
+
 # API Token 用于定时任务调用
 API_TOKEN = os.environ.get('API_TOKEN', 'sk_live_' + secrets.token_hex(16))
 
